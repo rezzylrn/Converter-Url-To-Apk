@@ -2,6 +2,8 @@
 
 A Node.js Telegram bot that converts a website URL into an Android APK (WebView). Send a link to the bot and it will automatically build the APK for you.
 
+![Preview](image/image.png)
+
 ---
 
 ## Requirements
@@ -54,7 +56,7 @@ cp example.env .env
 Then fill in your Telegram bot token:
 
 ```env
-BOT_TOKEN=your_bot_token_here
+TOKEN_BOT=your_bot_token_here
 ```
 
 > Get your token from [@BotFather](https://t.me/BotFather) on Telegram.
@@ -112,6 +114,8 @@ This project is licensed under the [MIT License](LICENSE).
 
 Bot Telegram berbasis Node.js yang mengubah URL website menjadi file APK Android (WebView). Cukup kirim link ke bot, dan bot akan otomatis mem-build APK untuk kamu.
 
+![Preview](image/image.png)
+
 ---
 
 ## Kebutuhan
@@ -164,7 +168,7 @@ cp example.env .env
 Lalu isi token bot Telegram kamu:
 
 ```env
-BOT_TOKEN=isi_token_bot_kamu_di_sini
+TOKEN_BOT=isi_token_bot_kamu_di_sini
 ```
 
 > Dapatkan token dari [@BotFather](https://t.me/BotFather) di Telegram.

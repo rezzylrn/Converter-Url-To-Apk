@@ -82,7 +82,7 @@ async function buildAPK(ctx, targetUrl) {
         await ctx.reply("your application has been completed!");
     } catch (error) {
         console.error("An error occurred in the build process:", error);
-        await ctx.reply(`: ${error.message}`);
+        await ctx.reply(`error: ${error.message}`);
     } finally {
         
         if (originalMainActivityContent) {

@@ -1,0 +1,22 @@
+{
+  "name": "url-to-apk-bot",
+  "version": "1.0.0",
+  "description": "Telegram bot to build Android APKs from URLs",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "keywords": [
+    "telegram-bot",
+    "android",
+    "apk",
+    "webview",
+    "nodejs"
+  ],
+  "author": "Manus AI",
+  "license": "MIT",
+  "dependencies": {
+    "dotenv": "^17.4.2",
+    "telegraf": "^4.15.3"
+  }
+}

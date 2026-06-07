@@ -54,7 +54,7 @@ cp example.env .env
 Then fill in your Telegram bot token:
 
 ```env
-TOKEN_BOT=your_bot_token_here
+BOT_TOKEN=your_bot_token_here
 ```
 
 > Get your token from [@BotFather](https://t.me/BotFather) on Telegram.
@@ -164,7 +164,7 @@ cp example.env .env
 Lalu isi token bot Telegram kamu:
 
 ```env
-TOKEN_BOT=isi_token_bot_kamu_di_sini
+BOT_TOKEN=isi_token_bot_kamu_di_sini
 ```
 
 > Dapatkan token dari [@BotFather](https://t.me/BotFather) di Telegram.

@@ -13,7 +13,7 @@
     "webview",
     "nodejs"
   ],
-  "author": "Manus AI",
+  "author": "Gracious",
   "license": "MIT",
   "dependencies": {
     "dotenv": "^17.4.2",

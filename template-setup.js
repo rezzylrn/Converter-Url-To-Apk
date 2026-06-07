@@ -3,7 +3,6 @@ const path = require('path');
 
 const dir = 'android-template';
 
-// 1. Buat folder struktur Android
 const folders = [
     `${dir}/app/src/main/java/com/example/webviewapp`,
     `${dir}/app/src/main/res/values`,
@@ -12,7 +11,6 @@ const folders = [
 
 folders.forEach(f => fs.mkdirSync(f, { recursive: true }));
 
-// 2. Isi konten file-file penting Android
 const files = {
     [`${dir}/settings.gradle`]: `
 pluginManagement { repositories { gradlePluginPortal(); google(); mavenCentral() } }
@@ -102,9 +100,8 @@ for (const [filePath, content] of Object.entries(files)) {
     fs.writeFileSync(filePath, content);
 }
 
-console.log("File Android selesai dibuat. Mengunduh Gradle Wrapper dari server resmi (pakai NodeJS)...");
+console.log("Android is now built. Download the Gradle Wrapper from the official server (using NodeJS) ...");
 
-// 3. Download menggunakan fetch bawaan NodeJS (Kode Error Udah Diperbaiki)
 async function downloadFile(url, dest) {
     const response = await fetch(url);
     if (!response.ok) throw new Error("Gagal download: " + response.statusText);
@@ -118,14 +115,13 @@ async function setupGradle() {
         const jarPath = path.join(dir, 'gradle/wrapper/gradle-wrapper.jar');
         
         await downloadFile('https://raw.githubusercontent.com/gradle/gradle/v8.0.0/gradlew', gradlewPath);
-        fs.chmodSync(gradlewPath, 0o755); // Memberikan izin eksekusi otomatis pengganti chmod +x
+        fs.chmodSync(gradlewPath, 0o755); 
         
         await downloadFile('https://raw.githubusercontent.com/gradle/gradle/v8.0.0/gradle/wrapper/gradle-wrapper.jar', jarPath);
         
-        console.log("\\nBERES! Folder 'android-template' sudah siap 100%.");
-        console.log("Silakan nyalakan bot lu dan coba command /build sekarang!");
-    } catch (error) {
-        console.error("Gagal mengunduh wrapper. Pastikan panel Pterodactyl lu ngga nge-block koneksi keluar.", error);
+        console.log("\\Success! Folder 'android-template' successfull downloaded.");
+         catch (error) {
+        console.error("Failed to download wrapper. Make sure your Pterodactyl panel doesn't block outgoing connections. .", error);
     }
 }
 

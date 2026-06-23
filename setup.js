@@ -1,15 +1,15 @@
 #!/usr/bin/env node
 
 /**
- * setup.js — System requirements checker & installer
- * Jalanin ini DULU sebelum build:  node setup.js
+ * setup.js — Check requirements, offer to install, then build
+ * Usage: node setup.js -u https://example.com -n "My App"
  */
 
-const { execSync, spawnSync } = require("child_process");
-const https = require("https");
-const fs = require("fs");
+const { execSync } = require("child_process");
+const fs   = require("fs");
 const path = require("path");
-const os = require("os");
+const os   = require("os");
+const readline = require("readline");
 
 // ─── Auto-install CLI deps ────────────────────────────────────────────────────
 for (const dep of ["chalk", "ora"]) {
@@ -21,247 +21,285 @@ const chalk = require("chalk");
 const ora   = require("ora");
 
 // ─── Utils ────────────────────────────────────────────────────────────────────
-const PLATFORM = os.platform(); // linux | darwin | win32
-const IS_WIN   = PLATFORM === "win32";
-const IS_MAC   = PLATFORM === "darwin";
-const IS_LIN   = PLATFORM === "linux";
-
-const sep  = chalk.dim("  ─────────────────────────────────────────");
-const tick = chalk.green("  ✔");
-const cross= chalk.red("  ✖");
-const warn = chalk.yellow("  !");
-const info = chalk.cyan("  »");
+const IS_WIN = os.platform() === "win32";
+const IS_MAC = os.platform() === "darwin";
 
 function run(cmd) {
   try { return execSync(cmd, { stdio: "pipe" }).toString().trim(); }
   catch { return null; }
 }
 
-function header(title) {
+function ask(question) {
+  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+  return new Promise((resolve) => {
+    rl.question(question, (answer) => {
+      rl.close();
+      resolve(answer.trim().toLowerCase());
+    });
+  });
+}
+
+async function confirm(msg) {
+  const ans = await ask(`${chalk.yellow("  ?")} ${msg} ${chalk.dim("(y/n)")} `);
+  return ans === "y" || ans === "yes";
+}
+
+function abort(reason) {
   console.log();
-  console.log(chalk.bold.white(`  ${title}`));
-  console.log(sep);
+  console.log(chalk.red("  ✖ Proses dibatalkan.") + (reason ? chalk.dim(` (${reason})`) : ""));
+  console.log();
+  process.exit(0);
 }
 
-function printStep(label, status, note = "") {
-  const icon = status === "ok" ? tick : status === "warn" ? warn : cross;
-  const msg  = status === "ok" ? chalk.green(label) : status === "warn" ? chalk.yellow(label) : chalk.red(label);
-  console.log(`${icon}  ${msg}${note ? chalk.dim("  — " + note) : ""}`);
-}
+function ok(msg)   { console.log(chalk.green("  ✔") + "  " + msg); }
+function fail(msg) { console.log(chalk.red("  ✖") + "  " + msg); }
+function info(msg) { console.log(chalk.cyan("  »") + "  " + msg); }
+function sep()     { console.log(chalk.dim("  ────────────────────────────────────")); }
 
-// ─── Check: Node.js ───────────────────────────────────────────────────────────
+// ─── Checkers ─────────────────────────────────────────────────────────────────
+
+// Node.js
 function checkNode() {
-  header("Node.js");
   const ver = run("node --version");
-  const major = ver ? parseInt(ver.replace("v", "").split(".")[0]) : 0;
-  if (major >= 16) {
-    printStep(`Node ${ver}`, "ok");
-    return true;
-  }
-  printStep("Node.js < 16 or not found", "fail");
-  console.log(`${info}  Download: ${chalk.underline("https://nodejs.org/")}`);
-  console.log(`${info}  Minimum version required: ${chalk.white("v16")}`);
-  return false;
+  const major = ver ? parseInt(ver.replace("v", "")) : 0;
+  return { ok: major >= 16, version: ver || null };
 }
 
-// ─── Check: Java ─────────────────────────────────────────────────────────────
+// Java
 function checkJava() {
-  header("Java JDK");
-  const ver = run("java -version 2>&1");
-  if (ver && ver.includes("version")) {
-    const match = ver.match(/"([^"]+)"/);
-    const jver  = match ? match[1] : "unknown";
-    const major = parseInt(jver.split(".")[0]);
-    if (major >= 11) {
-      printStep(`Java ${jver}`, "ok");
-      return true;
-    }
-    printStep(`Java ${jver} (terlalu lama, butuh >= 11)`, "warn");
-  } else {
-    printStep("Java tidak ditemukan", "fail");
-  }
-
-  console.log();
-  console.log(`${info}  Cara install Java JDK 17:`);
-  if (IS_WIN) {
-    console.log(`${info}  1. Download installer: ${chalk.underline("https://adoptium.net/")}`);
-    console.log(`${info}  2. Pilih: ${chalk.white("JDK 17 → Windows → x64 → .msi")}`);
-    console.log(`${info}  3. Install, lalu restart terminal`);
-    console.log(`${info}  4. Cek: ${chalk.white("java -version")}`);
-  } else if (IS_MAC) {
-    console.log(`${info}  brew install openjdk@17`);
-    console.log(`${info}  echo 'export PATH="/opt/homebrew/opt/openjdk@17/bin:$PATH"' >> ~/.zshrc`);
-    console.log(`${info}  source ~/.zshrc`);
-  } else {
-    console.log(`${info}  sudo apt update && sudo apt install openjdk-17-jdk -y`);
-    console.log(`${info}  # atau untuk Fedora/RHEL:`);
-    console.log(`${info}  sudo dnf install java-17-openjdk-devel`);
-  }
-  console.log(`${info}  Atau jalankan: ${chalk.white("node jdk.js")} (auto-download)`);
-  return false;
+  const out = run("java -version 2>&1");
+  if (!out) return { ok: false, version: null };
+  const match = out.match(/"([^"]+)"/);
+  const ver   = match ? match[1] : null;
+  const major = ver ? parseInt(ver.split(".")[0]) : 0;
+  return { ok: major >= 11, version: ver };
 }
 
-// ─── Check: Android SDK ───────────────────────────────────────────────────────
+// Android SDK
 function checkAndroidSdk() {
-  header("Android SDK");
-
   const sdkEnv = process.env.ANDROID_HOME || process.env.ANDROID_SDK_ROOT;
-  const defaultPaths = IS_WIN
+  const defaults = IS_WIN
     ? [path.join(os.homedir(), "AppData", "Local", "Android", "Sdk")]
     : IS_MAC
     ? [path.join(os.homedir(), "Library", "Android", "sdk")]
-    : [
-        path.join(os.homedir(), "Android", "Sdk"),
-        "/opt/android-sdk",
-        "/usr/local/android-sdk",
-      ];
+    : [path.join(os.homedir(), "Android", "Sdk"), "/opt/android-sdk"];
 
-  const sdkPath = sdkEnv || defaultPaths.find(fs.existsSync);
+  const sdkPath = sdkEnv || defaults.find(fs.existsSync);
+  if (!sdkPath || !fs.existsSync(sdkPath)) return { ok: false, path: null };
 
-  if (!sdkPath || !fs.existsSync(sdkPath)) {
-    printStep("Android SDK tidak ditemukan", "fail");
-    console.log();
-    console.log(`${info}  Cara install Android SDK:`);
-    console.log(`${info}  1. Download Android Studio: ${chalk.underline("https://developer.android.com/studio")}`);
-    console.log(`${info}  2. Install Android Studio, buka, ikuti setup wizard`);
-    console.log(`${info}  3. Di SDK Manager, install:`);
-    console.log(`${info}     - ${chalk.white("Android SDK Platform 33+")} (atau versi terbaru)`);
-    console.log(`${info}     - ${chalk.white("Android SDK Build-Tools")}`);
-    console.log(`${info}     - ${chalk.white("Android SDK Command-line Tools")}`);
-    console.log();
-    console.log(`${info}  4. Set environment variable ANDROID_HOME:`);
-    if (IS_WIN) {
-      console.log(`${info}     Di System Properties → Environment Variables:`);
-      console.log(`${info}     ${chalk.white(`ANDROID_HOME = C:\\Users\\<user>\\AppData\\Local\\Android\\Sdk`)}`);
-    } else if (IS_MAC) {
-      console.log(`${info}     echo 'export ANDROID_HOME=$HOME/Library/Android/sdk' >> ~/.zshrc`);
-      console.log(`${info}     echo 'export PATH=$PATH:$ANDROID_HOME/platform-tools' >> ~/.zshrc`);
-      console.log(`${info}     source ~/.zshrc`);
-    } else {
-      console.log(`${info}     echo 'export ANDROID_HOME=$HOME/Android/Sdk' >> ~/.bashrc`);
-      console.log(`${info}     echo 'export PATH=$PATH:$ANDROID_HOME/platform-tools' >> ~/.bashrc`);
-      console.log(`${info}     source ~/.bashrc`);
-    }
-    return false;
-  }
+  const buildTools = path.join(sdkPath, "build-tools");
+  const hasBuild   = fs.existsSync(buildTools) && fs.readdirSync(buildTools).some(v => /^\d/.test(v));
 
-  printStep(`SDK ditemukan: ${sdkPath}`, "ok");
-
-  // Cek build-tools
-  const buildToolsDir = path.join(sdkPath, "build-tools");
-  if (fs.existsSync(buildToolsDir)) {
-    const versions = fs.readdirSync(buildToolsDir).filter(v => /^\d/.test(v)).sort().reverse();
-    if (versions.length > 0) {
-      printStep(`Build-tools: ${versions[0]}`, "ok");
-    } else {
-      printStep("Build-tools tidak ditemukan", "warn");
-      console.log(`${info}  Di Android Studio → SDK Manager → SDK Tools → install Android SDK Build-Tools`);
-    }
-  } else {
-    printStep("Build-tools tidak ditemukan", "warn");
-  }
-
-  // Cek platform-tools (adb)
-  const adb = run(IS_WIN ? "adb version" : "adb version 2>&1");
-  if (adb) {
-    const adbVer = adb.split("\n")[0];
-    printStep(`ADB: ${adbVer}`, "ok");
-  } else {
-    printStep("ADB tidak ditemukan (platform-tools)", "warn");
-    console.log(`${info}  Install via SDK Manager → SDK Tools → Android SDK Platform-Tools`);
-  }
-
-  return true;
+  return { ok: hasBuild, path: sdkPath };
 }
 
-// ─── Check: Node modules ──────────────────────────────────────────────────────
+// Node modules
 function checkNodeModules() {
-  header("Node Modules (npm install)");
+  return fs.existsSync(path.join(__dirname, "node_modules"));
+}
 
-  const pkgPath = path.join(__dirname, "package.json");
-  if (!fs.existsSync(pkgPath)) {
-    printStep("package.json tidak ditemukan", "fail");
+// ─── Installers ───────────────────────────────────────────────────────────────
+
+async function installJava() {
+  console.log();
+  info("Cara install Java JDK 17:");
+  sep();
+  if (IS_WIN) {
+    info(`1. Buka: ${chalk.underline("https://adoptium.net/")}`);
+    info(`2. Pilih: ${chalk.white("JDK 17 → Windows → x64 → .msi")}`);
+    info("3. Install, lalu restart terminal");
+    info(`4. Atau jalankan: ${chalk.white("node jdk.js")} (auto-download)`);
+    console.log();
+    const useScript = await confirm("Mau auto-install pakai node jdk.js?");
+    if (useScript) {
+      const jdkPath = path.join(__dirname, "jdk.js");
+      if (!fs.existsSync(jdkPath)) {
+        fail("jdk.js tidak ditemukan di project ini.");
+        return false;
+      }
+      const spinner = ora("  Mendownload Java...").start();
+      try {
+        execSync(`node "${jdkPath}"`, { stdio: "inherit" });
+        spinner.succeed("Java berhasil diinstall.");
+        return true;
+      } catch {
+        spinner.fail("Gagal install Java.");
+        return false;
+      }
+    }
+    info("Silakan install manual, lalu jalankan ulang setup.js");
+    return false;
+  } else if (IS_MAC) {
+    info("brew install openjdk@17");
+    info(`echo 'export PATH="/opt/homebrew/opt/openjdk@17/bin:$PATH"' >> ~/.zshrc`);
+    info("source ~/.zshrc");
+    console.log();
+    const useScript = await confirm("Mau coba auto-install via node jdk.js?");
+    if (useScript) {
+      const jdkPath = path.join(__dirname, "jdk.js");
+      if (!fs.existsSync(jdkPath)) { fail("jdk.js tidak ditemukan."); return false; }
+      try { execSync(`node "${jdkPath}"`, { stdio: "inherit" }); return true; }
+      catch { fail("Gagal install Java."); return false; }
+    }
+    return false;
+  } else {
+    // Linux — bisa auto
+    const useScript = await confirm("Mau auto-install via node jdk.js?");
+    if (useScript) {
+      const jdkPath = path.join(__dirname, "jdk.js");
+      if (!fs.existsSync(jdkPath)) { fail("jdk.js tidak ditemukan."); return false; }
+      const spinner = ora("  Mendownload Java...").start();
+      try {
+        execSync(`node "${jdkPath}"`, { stdio: "inherit" });
+        spinner.succeed("Java berhasil diinstall.");
+        return true;
+      } catch {
+        spinner.fail("Gagal install Java.");
+        return false;
+      }
+    }
+    info("Install manual: sudo apt install openjdk-17-jdk -y");
+    info("Lalu jalankan ulang: node setup.js");
     return false;
   }
-
-  const nodeModules = path.join(__dirname, "node_modules");
-  if (!fs.existsSync(nodeModules)) {
-    printStep("node_modules belum ada", "warn");
-    console.log(`${info}  Jalankan: ${chalk.white("npm install")}`);
-
-    const spinner = ora("  Installing npm packages...").start();
-    try {
-      execSync("npm install", { cwd: __dirname, stdio: "pipe" });
-      spinner.succeed("npm install selesai");
-      return true;
-    } catch (e) {
-      spinner.fail("npm install gagal: " + e.message);
-      return false;
-    }
-  }
-
-  printStep("node_modules sudah ada", "ok");
-  return true;
 }
 
-// ─── Check: .env ──────────────────────────────────────────────────────────────
-function checkEnv() {
-  header(".env Config");
-
-  const envExample = path.join(__dirname, "example.env");
-  const envFile    = path.join(__dirname, ".env");
-
-  if (fs.existsSync(envFile)) {
-    printStep(".env sudah ada", "ok");
-  } else if (fs.existsSync(envExample)) {
-    fs.copyFileSync(envExample, envFile);
-    printStep(".env dibuat dari example.env", "ok");
-    console.log(`${info}  Edit .env sesuai kebutuhan sebelum build`);
+async function installAndroidSdk() {
+  console.log();
+  info("Android SDK perlu diinstall manual:");
+  sep();
+  info(`1. Download Android Studio: ${chalk.underline("https://developer.android.com/studio")}`);
+  info("2. Install & buka, ikuti setup wizard");
+  info("3. Buka SDK Manager → install:");
+  info(`   - ${chalk.white("Android SDK Platform 33+")}`);
+  info(`   - ${chalk.white("Android SDK Build-Tools")}`);
+  info(`   - ${chalk.white("Android SDK Platform-Tools")}`);
+  info("4. Set ANDROID_HOME di environment variable:");
+  if (IS_WIN) {
+    info(`   ${chalk.white(`ANDROID_HOME = C:\\Users\\<user>\\AppData\\Local\\Android\\Sdk`)}`);
+    info(`   PATH += ${chalk.white(`%ANDROID_HOME%\\platform-tools`)}`);
+  } else if (IS_MAC) {
+    info(`   ${chalk.white("export ANDROID_HOME=$HOME/Library/Android/sdk")}`);
+    info(`   ${chalk.white("export PATH=$PATH:$ANDROID_HOME/platform-tools")}`);
   } else {
-    printStep(".env dan example.env tidak ditemukan", "warn");
-    console.log(`${info}  .env akan dibuat otomatis saat build`);
+    info(`   ${chalk.white("export ANDROID_HOME=$HOME/Android/Sdk")}`);
+    info(`   ${chalk.white("export PATH=$PATH:$ANDROID_HOME/platform-tools")}`);
   }
-  return true;
+  info("5. Jalankan ulang: node setup.js");
+  console.log();
 }
 
-// ─── Summary ──────────────────────────────────────────────────────────────────
-function printSummary(results) {
-  header("Ringkasan");
-
-  const allPass = Object.values(results).every(Boolean);
-
-  for (const [key, ok] of Object.entries(results)) {
-    printStep(key, ok ? "ok" : "fail");
+async function installNodeModules() {
+  const spinner = ora("  npm install...").start();
+  try {
+    execSync("npm install", { cwd: __dirname, stdio: "pipe" });
+    spinner.succeed("npm install selesai.");
+    return true;
+  } catch (e) {
+    spinner.fail("npm install gagal: " + e.message);
+    return false;
   }
-
-  console.log();
-  if (allPass) {
-    console.log(chalk.bold.green("  ✔ Semua requirement terpenuhi!"));
-    console.log();
-    console.log(`  Sekarang lo bisa build APK:`);
-    console.log(chalk.white(`  node cli.js -u https://example.com -n "My App"`));
-    console.log();
-    console.log(`  Atau lihat semua opsi:`);
-    console.log(chalk.white(`  node cli.js --help`));
-  } else {
-    console.log(chalk.bold.yellow("  ! Ada requirement yang belum terpenuhi."));
-    console.log(`  Ikutin instruksi di atas, lalu jalankan ulang: ${chalk.white("node setup.js")}`);
-  }
-  console.log();
 }
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
-console.log();
-console.log(chalk.bold.magenta("  ╔═══════════════════════════════════╗"));
-console.log(chalk.bold.magenta("  ║   Converter URL → APK  •  Setup   ║"));
-console.log(chalk.bold.magenta("  ╚═══════════════════════════════════╝"));
+async function main() {
+  console.log();
+  console.log(chalk.bold.magenta("  ╔══════════════════════════════════════╗"));
+  console.log(chalk.bold.magenta("  ║    Converter URL → APK  •  Setup     ║"));
+  console.log(chalk.bold.magenta("  ╚══════════════════════════════════════╝"));
+  console.log();
 
-const results = {
-  "Node.js >= 16"  : checkNode(),
-  "Java >= 11"     : checkJava(),
-  "Android SDK"    : checkAndroidSdk(),
-  "Node Modules"   : checkNodeModules(),
-  ".env Config"    : checkEnv(),
-};
+  // ── 1. Node.js ──────────────────────────────────────────────────────────────
+  console.log(chalk.bold("  [1/4] Node.js"));
+  const node = checkNode();
+  if (node.ok) {
+    ok(`Node.js ${node.version}`);
+  } else {
+    fail(`Node.js ${node.version || "tidak ditemukan"} (butuh >= v16)`);
+    info(`Download: ${chalk.underline("https://nodejs.org/")}`);
+    // Node is required to even run this script, so we just inform and abort
+    abort("Node.js harus diinstall manual dulu");
+  }
+  console.log();
 
-printSummary(results);
+  // ── 2. Java ─────────────────────────────────────────────────────────────────
+  console.log(chalk.bold("  [2/4] Java JDK"));
+  let java = checkJava();
+  if (java.ok) {
+    ok(`Java ${java.version}`);
+  } else {
+    fail(`Java ${java.version || "tidak ditemukan"} (butuh >= 11)`);
+    const install = await confirm("Mau install Java sekarang?");
+    if (!install) abort("Java diperlukan untuk build APK");
+    const installed = await installJava();
+    if (!installed) abort("Java gagal diinstall, install manual lalu jalankan ulang");
+    // Re-check
+    java = checkJava();
+    if (!java.ok) abort("Java masih belum terdeteksi setelah install, cek PATH lalu restart terminal");
+    ok(`Java ${java.version} (terinstall)`);
+  }
+  console.log();
+
+  // ── 3. Android SDK ──────────────────────────────────────────────────────────
+  console.log(chalk.bold("  [3/4] Android SDK"));
+  let sdk = checkAndroidSdk();
+  if (sdk.ok) {
+    ok(`Android SDK: ${sdk.path}`);
+  } else {
+    fail(`Android SDK tidak ditemukan`);
+    const install = await confirm("Mau lihat cara installnya?");
+    if (!install) abort("Android SDK diperlukan untuk build APK");
+    await installAndroidSdk();
+    abort("Install Android SDK dulu, lalu jalankan ulang: node setup.js");
+  }
+  console.log();
+
+  // ── 4. Node Modules ─────────────────────────────────────────────────────────
+  console.log(chalk.bold("  [4/4] Node Modules"));
+  let modules = checkNodeModules();
+  if (modules) {
+    ok("node_modules sudah ada");
+  } else {
+    fail("node_modules belum ada");
+    const install = await confirm("Mau jalankan npm install sekarang?");
+    if (!install) abort("npm install diperlukan");
+    const installed = await installNodeModules();
+    if (!installed) abort("npm install gagal");
+  }
+  console.log();
+
+  // ── Semua OK → lanjut build ─────────────────────────────────────────────────
+  sep();
+  console.log();
+  console.log(chalk.bold.green("  ✔ Semua requirement terpenuhi!"));
+  console.log();
+
+  // Forward semua argumen ke cli.js
+  const args = process.argv.slice(2);
+  if (args.length === 0) {
+    info(`Jalankan build dengan:`);
+    info(chalk.white(`node cli.js -u <url> -n <nama app>`));
+    info(chalk.white(`node cli.js --help`) + chalk.dim(" untuk lihat semua opsi"));
+    console.log();
+    process.exit(0);
+  }
+
+  // Kalau argumen sudah ada, langsung terusin ke cli.js
+  console.log(`  Melanjutkan ke build...`);
+  console.log();
+  const cliPath = path.join(__dirname, "cli.js");
+  if (!fs.existsSync(cliPath)) {
+    fail("cli.js tidak ditemukan");
+    process.exit(1);
+  }
+  try {
+    execSync(`node "${cliPath}" ${args.map(a => `"${a}"`).join(" ")}`, { stdio: "inherit" });
+  } catch {
+    process.exit(1);
+  }
+}
+
+main().catch((e) => {
+  console.log(chalk.red("\n  Error: " + e.message));
+  process.exit(1);
+});

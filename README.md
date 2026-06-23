@@ -1,71 +1,152 @@
-# Converter URL to APK
+# Converter URL → APK
 
-A Node.js Telegram bot that converts a website URL into an Android APK (WebView). Send a link to the bot and it will automatically build the APK for you.
-
-![Preview](image/image.jpg)
+Convert website apapun jadi APK Android lewat CLI.
 
 ---
 
-## Requirements
-
-- Node.js v16+
-- Java JDK (can be installed automatically, see steps below)
-- Telegram Bot Token (from [@BotFather](https://t.me/BotFather))
-
----
-
-## Installation & Setup
-
-### 1. Clone the Repository
+## Quick Start
 
 ```bash
+# 1. Clone repo
 git clone https://github.com/rezzylrn/Converter-Url-To-Apk.git
 cd Converter-Url-To-Apk
-```
 
-### 2. Install Dependencies
-
-```bash
+# 2. Install Node dependencies
 npm install
+
+# 3. Cek & setup system requirements
+node setup.js
+
+# 4. Build APK
+node cli.js -u https://example.com -n "My App"
 ```
 
-### 3. Install Java JDK
+---
 
-You can install it manually, or run the following command to install it automatically:
+## System Requirements
 
+Yang lo butuhkan sebelum bisa build:
+
+| Requirement     | Versi Minimum | Cara Install |
+|----------------|--------------|-------------|
+| Node.js        | v16+         | https://nodejs.org |
+| Java JDK       | 11+          | https://adoptium.net — atau `node jdk.js` |
+| Android SDK    | API 33+      | https://developer.android.com/studio |
+
+> **Tip:** Jalankan `node setup.js` — script ini otomatis ngecek semua requirement dan kasih tau cara install yang kurang.
+
+---
+
+## Setup Detail
+
+### 1. Node.js
+Download dari https://nodejs.org (pilih LTS). Setelah install, cek:
 ```bash
-node jdk.js
+node --version   # harus v16+
+npm --version
 ```
 
-### 4. Set Up the APK Template
+### 2. Java JDK
 
-Run this command to generate the Android project template structure needed to build the APK:
+**Windows:**
+1. Download JDK 17 dari https://adoptium.net
+2. Pilih: JDK 17 → Windows → x64 → `.msi`
+3. Install, restart terminal
+4. Cek: `java -version`
 
+**macOS:**
 ```bash
-node template-setup.js
+brew install openjdk@17
+echo 'export PATH="/opt/homebrew/opt/openjdk@17/bin:$PATH"' >> ~/.zshrc
+source ~/.zshrc
 ```
 
-### 5. Configure Environment
-
-Copy `example.env` to `.env`:
-
+**Linux (Ubuntu/Debian):**
 ```bash
-cp example.env .env
+sudo apt update && sudo apt install openjdk-17-jdk -y
 ```
 
-Then fill in your Telegram bot token:
+> Atau pakai auto-installer: `node jdk.js`
 
-```env
-BOT_TOKEN=your_bot_token_here
+### 3. Android SDK
+
+1. Download Android Studio: https://developer.android.com/studio
+2. Install dan buka, ikuti setup wizard
+3. Buka **SDK Manager** (Tools → SDK Manager), install:
+   - Android SDK Platform 33+
+   - Android SDK Build-Tools
+   - Android SDK Command-line Tools
+   - Android SDK Platform-Tools
+
+4. Set environment variable `ANDROID_HOME`:
+
+**Windows** (Environment Variables di System Properties):
+```
+ANDROID_HOME = C:\Users\<namauser>\AppData\Local\Android\Sdk
+PATH += %ANDROID_HOME%\platform-tools
 ```
 
-> Get your token from [@BotFather](https://t.me/BotFather) on Telegram.
-
-### 6. Run the Bot
-
+**macOS/Linux:**
 ```bash
-npm start
+# Tambahkan ke ~/.zshrc atau ~/.bashrc
+export ANDROID_HOME=$HOME/Library/Android/sdk        # macOS
+export ANDROID_HOME=$HOME/Android/Sdk                # Linux
+export PATH=$PATH:$ANDROID_HOME/platform-tools
+source ~/.zshrc   # atau ~/.bashrc
 ```
+
+---
+
+## Cara Build
+
+### Minimal
+```bash
+node cli.js -u https://example.com -n "My App"
+```
+Package name akan di-generate otomatis dari URL.
+
+### Lengkap
+```bash
+node cli.js \
+  -u https://example.com \
+  -n "My App" \
+  -p com.example.myapp \
+  -v 1.0.0 \
+  -o ./output \
+  --dark \
+  --offline
+```
+
+### Semua opsi
+```bash
+node cli.js --help
+```
+
+```
+Options:
+  -u, --url <url>            Target URL (wajib)
+  -n, --name <name>          Nama app (wajib)
+  -p, --pkg <package>        Package name (default: auto dari URL)
+  -v, --app-version <ver>    Versi app (default: 1.0.0)
+  -o, --output <dir>         Output folder (default: ./output)
+  --dark                     Dark mode
+  --offline                  Offline cache
+  -V, --version              Versi CLI
+  -h, --help                 Help
+```
+
+---
+
+## Troubleshooting
+
+**`java: command not found`**
+→ Java belum terinstall atau belum ada di PATH. Ikuti langkah di atas atau jalankan `node jdk.js`.
+
+**`ANDROID_HOME is not set`**
+→ Environment variable belum di-set. Ikuti langkah setup Android SDK di atas.
+
+**`Build failed`**
+→ Jalankan `node setup.js` dulu untuk lihat requirement mana yang belum terpenuhi.
 
 ---
 
@@ -73,148 +154,11 @@ npm start
 
 ```
 Converter-Url-To-Apk/
-├── index.js            # Main bot entry point
-├── jdk.js              # Java JDK auto-installer
-├── template-setup.js   # Android project template setup
-├── example.env         # Example environment config
-├── package.json        # Node.js dependencies
-└── LICENSE             # MIT License
+├── cli.js            ← Entry point build (jalanin ini)
+├── setup.js          ← Cek & guided install requirements
+├── index.js          ← Core build logic
+├── jdk.js            ← Auto-download Java
+├── template-setup.js ← Setup Android project template
+├── example.env       ← Contoh config
+└── README.md
 ```
-
----
-
-## Usage
-
-1. Start the bot
-2. Open Telegram and find your bot
-3. Send a website URL
-4. The bot will process it and send back the APK file
-
----
-
-## Dependencies
-
-| Package | Version | Purpose |
-|---------|---------|---------|
-| `telegraf` | ^4.15.3 | Telegram Bot framework |
-| `dotenv` | ^17.4.2 | Environment variable management |
-
----
-
-## License
-
-This project is licensed under the [MIT License](LICENSE).
-
-**Author:** Gracious — [@rezzylrn](https://github.com/rezzylrn)
-
----
----
-
-# Converter URL to APK
-
-Bot Telegram berbasis Node.js yang mengubah URL website menjadi file APK Android (WebView). Cukup kirim link ke bot, dan bot akan otomatis mem-build APK untuk kamu.
-
-![Preview](image/image.jpg)
-
----
-
-## Kebutuhan
-
-- Node.js v16+
-- Java JDK (bisa di-install otomatis, lihat langkah di bawah)
-- Telegram Bot Token (dari [@BotFather](https://t.me/BotFather))
-
----
-
-## Instalasi & Setup
-
-### 1. Clone Repository
-
-```bash
-git clone https://github.com/rezzylrn/Converter-Url-To-Apk.git
-cd Converter-Url-To-Apk
-```
-
-### 2. Install Dependencies
-
-```bash
-npm install
-```
-
-### 3. Install Java JDK
-
-Bisa install manual, atau jalankan perintah berikut untuk install otomatis:
-
-```bash
-node jdk.js
-```
-
-### 4. Setup Template APK
-
-Jalankan perintah ini untuk membuat struktur template project Android yang dibutuhkan untuk build APK:
-
-```bash
-node template-setup.js
-```
-
-### 5. Konfigurasi Environment
-
-Salin file `example.env` menjadi `.env`:
-
-```bash
-cp example.env .env
-```
-
-Lalu isi token bot Telegram kamu:
-
-```env
-BOT_TOKEN=isi_token_bot_kamu_di_sini
-```
-
-> Dapatkan token dari [@BotFather](https://t.me/BotFather) di Telegram.
-
-### 6. Jalankan Bot
-
-```bash
-npm start
-```
-
----
-
-## Struktur File
-
-```
-Converter-Url-To-Apk/
-├── index.js            # Entry point utama bot
-├── jdk.js              # Script auto-install Java JDK
-├── template-setup.js   # Setup template project Android
-├── example.env         # Contoh konfigurasi environment
-├── package.json        # Dependensi Node.js
-└── LICENSE             # Lisensi MIT
-```
-
----
-
-## Cara Penggunaan
-
-1. Jalankan bot
-2. Buka Telegram, cari bot kamu
-3. Kirim URL website yang ingin dijadikan APK
-4. Bot akan memproses dan mengirimkan file APK
-
----
-
-## Dependensi
-
-| Package | Versi | Kegunaan |
-|---------|-------|----------|
-| `telegraf` | ^4.15.3 | Framework Telegram Bot |
-| `dotenv` | ^17.4.2 | Manajemen environment variable |
-
----
-
-## Lisensi
-
-Proyek ini menggunakan lisensi [MIT](LICENSE).
-
-**Author:** Gracious — [@rezzylrn](https://github.com/rezzylrn)

@@ -1,164 +1,99 @@
-# Converter URL → APK
+# 🚀 URL to APK Converter CLI
 
-Convert website apapun jadi APK Android lewat CLI.
+Professional CLI tool to convert any website into a native Android application using a WebView wrapper. Simple, fast, and efficient.
+
+> *Alat CLI profesional untuk mengubah website apapun menjadi aplikasi Android native menggunakan wrapper WebView. Sederhana, cepat, dan efisien.*
 
 ---
 
-## Quick Start
+## 📋 Features / Fitur
 
+- **Professional CLI**: Clean and interactive command-line interface.
+- **Auto-Package ID**: Automatically generates package IDs from URLs.
+- **Environment Check**: Built-in setup script to verify requirements.
+- **Fast Build**: Optimized Gradle build process.
+- **Bilingual Support**: Documentation in English and Indonesian.
+
+---
+
+## 🛠️ Prerequisites / Persyaratan
+
+Before you begin, ensure you have the following installed:
+*Sebelum memulai, pastikan Anda telah menginstal:*
+
+| Requirement | Version | Link |
+| --- | --- | --- |
+| **Node.js** | v16+ | [Download](https://nodejs.org) |
+| **Java JDK** | 11+ | [Download](https://adoptium.net) |
+| **Android SDK** | API 33+ | [Download](https://developer.android.com/studio) |
+
+> **Note**: Make sure `ANDROID_HOME` environment variable is set.
+> *Catatan: Pastikan environment variable `ANDROID_HOME` sudah diatur.*
+
+---
+
+## 🚀 Quick Start / Memulai Cepat
+
+### 1. Clone & Install
 ```bash
-# 1. Clone repo
 git clone https://github.com/rezzylrn/Converter-Url-To-Apk.git
 cd Converter-Url-To-Apk
-
-# 2. Install Node dependencies
 npm install
+```
 
-# 3. Cek & setup system requirements
+### 2. Verify Environment / Verifikasi Lingkungan
+Run the setup script to check if your system is ready:
+*Jalankan skrip setup untuk mengecek kesiapan sistem:*
+```bash
 node setup.js
+```
 
-# 4. Build APK
-node cli.js -u https://example.com -n "My App"
+### 3. Build APK / Membuat APK
+Convert your URL to an APK with a single command:
+*Ubah URL menjadi APK dengan satu perintah:*
+```bash
+node cli.js -u https://example.com -n "My Awesome App"
 ```
 
 ---
 
-## System Requirements
+## 📖 CLI Options / Opsi CLI
 
-Yang lo butuhkan sebelum bisa build:
-
-| Requirement     | Versi Minimum | Cara Install |
-|----------------|--------------|-------------|
-| Node.js        | v16+         | https://nodejs.org |
-| Java JDK       | 11+          | https://adoptium.net — atau `node jdk.js` |
-| Android SDK    | API 33+      | https://developer.android.com/studio |
-
-> **Tip:** Jalankan `node setup.js` — script ini otomatis ngecek semua requirement dan kasih tau cara install yang kurang.
-
----
-
-## Setup Detail
-
-### 1. Node.js
-Download dari https://nodejs.org (pilih LTS). Setelah install, cek:
-```bash
-node --version   # harus v16+
-npm --version
-```
-
-### 2. Java JDK
-
-**Windows:**
-1. Download JDK 17 dari https://adoptium.net
-2. Pilih: JDK 17 → Windows → x64 → `.msi`
-3. Install, restart terminal
-4. Cek: `java -version`
-
-**macOS:**
-```bash
-brew install openjdk@17
-echo 'export PATH="/opt/homebrew/opt/openjdk@17/bin:$PATH"' >> ~/.zshrc
-source ~/.zshrc
-```
-
-**Linux (Ubuntu/Debian):**
-```bash
-sudo apt update && sudo apt install openjdk-17-jdk -y
-```
-
-> Atau pakai auto-installer: `node jdk.js`
-
-### 3. Android SDK
-
-1. Download Android Studio: https://developer.android.com/studio
-2. Install dan buka, ikuti setup wizard
-3. Buka **SDK Manager** (Tools → SDK Manager), install:
-   - Android SDK Platform 33+
-   - Android SDK Build-Tools
-   - Android SDK Command-line Tools
-   - Android SDK Platform-Tools
-
-4. Set environment variable `ANDROID_HOME`:
-
-**Windows** (Environment Variables di System Properties):
-```
-ANDROID_HOME = C:\Users\<namauser>\AppData\Local\Android\Sdk
-PATH += %ANDROID_HOME%\platform-tools
-```
-
-**macOS/Linux:**
-```bash
-# Tambahkan ke ~/.zshrc atau ~/.bashrc
-export ANDROID_HOME=$HOME/Library/Android/sdk        # macOS
-export ANDROID_HOME=$HOME/Android/Sdk                # Linux
-export PATH=$PATH:$ANDROID_HOME/platform-tools
-source ~/.zshrc   # atau ~/.bashrc
-```
+| Option | Description | Keterangan |
+| --- | --- | --- |
+| `-u, --url` | Target website URL (Required) | URL website target (Wajib) |
+| `-n, --name` | Name of the app (Required) | Nama aplikasi (Wajib) |
+| `-p, --package` | Custom Package ID | ID Paket kustom |
+| `-v, --version` | App version name | Nama versi aplikasi |
+| `-o, --output` | Output directory | Direktori hasil |
+| `--dark` | Enable dark mode | Aktifkan mode gelap |
 
 ---
 
-## Cara Build
+## 📁 Project Structure / Struktur Proyek
 
-### Minimal
-```bash
-node cli.js -u https://example.com -n "My App"
-```
-Package name akan di-generate otomatis dari URL.
-
-### Lengkap
-```bash
-node cli.js \
-  -u https://example.com \
-  -n "My App" \
-  -p com.example.myapp \
-  -v 1.0.0 \
-  -o ./output \
-  --dark \
-  --offline
-```
-
-### Semua opsi
-```bash
-node cli.js --help
-```
-
-```
-Options:
-  -u, --url <url>            Target URL (wajib)
-  -n, --name <name>          Nama app (wajib)
-  -p, --pkg <package>        Package name (default: auto dari URL)
-  -v, --app-version <ver>    Versi app (default: 1.0.0)
-  -o, --output <dir>         Output folder (default: ./output)
-  --dark                     Dark mode
-  --offline                  Offline cache
-  -V, --version              Versi CLI
-  -h, --help                 Help
-```
-
----
-
-## Troubleshooting
-
-**`java: command not found`**
-→ Java belum terinstall atau belum ada di PATH. Ikuti langkah di atas atau jalankan `node jdk.js`.
-
-**`ANDROID_HOME is not set`**
-→ Environment variable belum di-set. Ikuti langkah setup Android SDK di atas.
-
-**`Build failed`**
-→ Jalankan `node setup.js` dulu untuk lihat requirement mana yang belum terpenuhi.
-
----
-
-## File Structure
-
-```
+```text
 Converter-Url-To-Apk/
-├── cli.js            ← Entry point build (jalanin ini)
-├── setup.js          ← Cek & guided install requirements
-├── index.js          ← Core build logic
-├── jdk.js            ← Auto-download Java
-├── template-setup.js ← Setup Android project template
-├── example.env       ← Contoh config
-└── README.md
+├── cli.js            # CLI Entry point
+├── index.js          # Core build logic
+├── setup.js          # Environment checker
+├── template-setup.js # Android project initializer
+└── README.md         # Documentation
 ```
+
+---
+
+## 🤝 Contribution / Kontribusi
+
+Feel free to fork this project and submit pull requests. For major changes, please open an issue first to discuss what you would like to change.
+
+*Silakan fork proyek ini dan kirim pull request. Untuk perubahan besar, harap buka issue terlebih dahulu untuk mendiskusikan apa yang ingin Anda ubah.*
+
+---
+
+## 📜 License / Lisensi
+
+Distributed under the MIT License. See `LICENSE` for more information.
+*Didistribusikan di bawah Lisensi MIT. Lihat `LICENSE` untuk informasi lebih lanjut.*
+
+Created with ❤️ by [rezzylrn](https://github.com/rezzylrn)

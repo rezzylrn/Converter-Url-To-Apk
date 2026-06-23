@@ -5,6 +5,19 @@
  * A professional tool to convert any website into an Android application.
  */
 
+const { execSync } = require('child_process');
+
+// --- Auto-install dependencies ---
+const DEPS = ["commander", "chalk", "ora"];
+for (const dep of DEPS) {
+    try {
+        require.resolve(dep);
+    } catch (e) {
+        console.log(`Installing missing dependency: ${dep}...`);
+        execSync(`npm install ${dep}`, { stdio: "inherit" });
+    }
+}
+
 const { Command } = require('commander');
 const chalk = require('chalk');
 const ora = require('ora');

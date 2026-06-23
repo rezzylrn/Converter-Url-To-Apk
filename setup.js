@@ -12,14 +12,16 @@ const path = require("path");
 const os = require("os");
 const readline = require("readline");
 
-// --- Auto-install dependencies ---
-const DEPS = ["chalk", "ora"];
+const DEPS = [
+    { name: "chalk", pkg: "chalk@4.1.2" },
+    { name: "ora", pkg: "ora@5.4.1" }
+];
 for (const dep of DEPS) {
     try {
-        require.resolve(dep);
+        require.resolve(dep.name);
     } catch (e) {
-        console.log(`Installing missing dependency: ${dep}...`);
-        execSync(`npm install ${dep}`, { stdio: "inherit" });
+        console.log(`Installing missing dependency: ${dep.name}...`);
+        execSync(`npm install ${dep.pkg}`, { stdio: "inherit" });
     }
 }
 

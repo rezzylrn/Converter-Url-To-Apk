@@ -11,9 +11,21 @@ const fs = require("fs");
 const path = require("path");
 const os = require("os");
 const readline = require("readline");
+
+// --- Auto-install dependencies ---
+const DEPS = ["chalk", "ora"];
+for (const dep of DEPS) {
+    try {
+        require.resolve(dep);
+    } catch (e) {
+        console.log(`Installing missing dependency: ${dep}...`);
+        execSync(`npm install ${dep}`, { stdio: "inherit" });
+    }
+}
+
 const chalk = require("chalk");
 const ora = require("ora");
-const { setupGradle } = require("./template-setup"); // Import setupGradle
+const { setupGradle } = require("./template-setup");
 
 // --- Utility Functions ---
 const IS_WIN = os.platform() === "win32";
@@ -142,7 +154,6 @@ async function initializeAndroidTemplate() {
     }
     const spinner = ora("  Running template-setup.js...").start();
     try {
-        // Call the exported setupGradle function
         await setupGradle(); 
         spinner.succeed("Android template initialized successfully.");
         return true;
@@ -182,7 +193,7 @@ async function main() {
         if (!install) abort("Java is required to build APKs.");
         const installed = await installJava();
         if (!installed) abort("Java installation failed. Please install manually and re-run setup.");
-        java = checkJava(); // Re-check after attempted install
+        java = checkJava();
         if (!java.ok) abort("Java still not detected after installation. Check PATH and restart terminal.");
         ok(`Java ${java.version} (installed)`);
     }

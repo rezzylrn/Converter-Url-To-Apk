@@ -1,7 +1,8 @@
-const fs = require('fs');
-const path = require('path');
+const fs = require("fs");
+const path = require("path");
+const https = require("https"); // Use https module for downloading
 
-const dir = 'android-template';
+const dir = "android-template";
 
 const folders = [
     `${dir}/app/src/main/java/com/example/webviewapp`,
@@ -16,7 +17,7 @@ const files = {
 pluginManagement { repositories { gradlePluginPortal(); google(); mavenCentral() } }
 dependencyResolutionManagement { repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS); repositories { google(); mavenCentral() } }
 rootProject.name = "BotWebView"
-include ':app'
+include ":app"
     `.trim(),
 
     [`${dir}/gradle.properties`]: `
@@ -27,23 +28,23 @@ android.nonTransitiveRClass=true
 
     [`${dir}/build.gradle`]: `
 plugins {
-    id 'com.android.application' version '8.0.2' apply false
-    id 'org.jetbrains.kotlin.android' version '1.8.20' apply false
+    id "com.android.application" version "8.0.2" apply false
+    id "org.jetbrains.kotlin.android" version "1.8.20" apply false
 }
     `.trim(),
 
     [`${dir}/app/build.gradle`]: `
-plugins { id 'com.android.application'; id 'org.jetbrains.kotlin.android' }
+plugins { id "com.android.application"; id "org.jetbrains.kotlin.android" }
 android {
-    namespace 'com.example.webviewapp'
+    namespace "com.example.webviewapp"
     compileSdk 33
     defaultConfig { applicationId "com.example.webviewapp"; minSdk 21; targetSdk 33; versionCode 1; versionName "1.0" }
     compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
-    kotlinOptions { jvmTarget = '17' }
+    kotlinOptions { jvmTarget = "17" }
 }
 dependencies {
-    implementation 'androidx.core:core-ktx:1.10.1'
-    implementation 'androidx.appcompat:appcompat:1.6.1'
+    implementation "androidx.core:core-ktx:1.10.1"
+    implementation "androidx.appcompat:appcompat:1.6.1"
 }
     `.trim(),
 
@@ -100,29 +101,47 @@ for (const [filePath, content] of Object.entries(files)) {
     fs.writeFileSync(filePath, content);
 }
 
-console.log("Android is now built. Download the Gradle Wrapper from the official server (using NodeJS) ...");
+console.log("Android template files created.");
 
 async function downloadFile(url, dest) {
-    const response = await fetch(url);
-    if (!response.ok) throw new Error("Gagal download: " + response.statusText);
-    const buffer = await response.arrayBuffer();
-    fs.writeFileSync(dest, Buffer.from(buffer));
+    return new Promise((resolve, reject) => {
+        const file = fs.createWriteStream(dest);
+        https.get(url, (response) => {
+            if (response.statusCode !== 200) {
+                reject(new Error(`Failed to get \'${url}\' (${response.statusCode})`));
+                return;
+            }
+            response.pipe(file);
+            file.on("finish", () => resolve());
+            file.on("error", (err) => reject(err));
+        }).on("error", (err) => reject(err));
+    });
 }
 
 async function setupGradle() {
     try {
-        const gradlewPath = path.join(dir, 'gradlew');
-        const jarPath = path.join(dir, 'gradle/wrapper/gradle-wrapper.jar');
+        console.log("Downloading Gradle Wrapper...");
+        const gradlewPath = path.join(dir, "gradlew");
+        const jarPath = path.join(dir, "gradle/wrapper/gradle-wrapper.jar");
         
-        await downloadFile('https://raw.githubusercontent.com/gradle/gradle/v8.0.0/gradlew', gradlewPath);
+        await downloadFile("https://raw.githubusercontent.com/gradle/gradle/v8.0.0/gradlew", gradlewPath);
         fs.chmodSync(gradlewPath, 0o755); 
         
-        await downloadFile('https://raw.githubusercontent.com/gradle/gradle/v8.0.0/gradle/wrapper/gradle-wrapper.jar', jarPath);
+        await downloadFile("https://raw.githubusercontent.com/gradle/gradle/v8.0.0/gradle/wrapper/gradle-wrapper.jar", jarPath);
         
-        console.log("\\Success! Folder 'android-template' successfull downloaded.");
-         catch (error) {
-        console.error("Failed to download wrapper. Make sure your Pterodactyl panel doesn't block outgoing connections. .", error);
+        console.log("Success! Folder \'android-template\' successfully set up.");
+    } catch (error) {
+        console.error("Failed to download Gradle wrapper: ", error.message);
+        throw error; // Re-throw to indicate failure
     }
 }
 
-setupGradle();
+// Only run setupGradle if this script is executed directly
+if (require.main === module) {
+    setupGradle().catch(e => {
+        console.error("Error during template setup:", e.message);
+        process.exit(1);
+    });
+}
+
+module.exports = { setupGradle };

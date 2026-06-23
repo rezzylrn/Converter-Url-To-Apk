@@ -12,19 +12,6 @@ const path = require("path");
 const os = require("os");
 const readline = require("readline");
 
-const DEPS = [
-    { name: "chalk", pkg: "chalk@4.1.2" },
-    { name: "ora", pkg: "ora@5.4.1" }
-];
-for (const dep of DEPS) {
-    try {
-        require.resolve(dep.name);
-    } catch (e) {
-        console.log(`Installing missing dependency: ${dep.name}...`);
-        execSync(`npm install ${dep.pkg}`, { stdio: "inherit" });
-    }
-}
-
 const chalk = require("chalk");
 const ora = require("ora");
 const { setupGradle } = require("./template-setup");
@@ -34,8 +21,11 @@ const IS_WIN = os.platform() === "win32";
 const IS_MAC = os.platform() === "darwin";
 
 function run(cmd) {
-    try { return execSync(cmd, { stdio: "pipe" }).toString().trim(); }
-    catch { return null; }
+    try {
+        return execSync(cmd, { stdio: "pipe", timeout: 10000 }).toString().trim();
+    } catch {
+        return null;
+    }
 }
 
 function ask(question) {
@@ -74,7 +64,9 @@ function checkNode() {
 }
 
 function checkJava() {
-    const out = run("java -version 2>&1");
+    // FIX #9: Use shell-specific stderr redirect properly
+    const cmd = IS_WIN ? "java -version 2>&1" : "java -version 2>&1";
+    const out = run(cmd);
     if (!out) return { ok: false, version: null };
     const match = out.match(/"([^"]+)"/);
     const ver = match ? match[1] : null;
@@ -101,23 +93,23 @@ function checkAndroidSdk() {
 
 // --- Installers ---
 
-async function installJava() {
+async function showJavaInstallGuide() {
     console.log();
-    info("Attempting to auto-install Java JDK 17...");
-    const jdkPath = path.join(__dirname, "jdk.js");
-    if (!fs.existsSync(jdkPath)) {
-        fail("jdk.js not found in this project. Please install Java manually.");
-        return false;
+    info("Java JDK needs to be installed manually:");
+    sep();
+    if (IS_WIN) {
+        info("1. Download from: " + chalk.underline("https://adoptium.net/temurin/releases/"));
+        info("2. Select: Windows > JDK 17 > .msi installer");
+        info("3. Run installer and ensure JAVA_HOME is set");
+    } else if (IS_MAC) {
+        info("1. Install via Homebrew: " + chalk.white("brew install openjdk@17"));
+        info("2. Or download from: " + chalk.underline("https://adoptium.net/temurin/releases/"));
+    } else {
+        info("1. Ubuntu/Debian: " + chalk.white("sudo apt install openjdk-17-jdk"));
+        info("2. Or download from: " + chalk.underline("https://adoptium.net/temurin/releases/"));
     }
-    const spinner = ora("  Downloading and installing Java...").start();
-    try {
-        execSync(`node "${jdkPath}"`, { stdio: "inherit" });
-        spinner.succeed("Java installed successfully.");
-        return true;
-    } catch (e) {
-        spinner.fail("Failed to install Java: " + e.message);
-        return false;
-    }
+    info("4. Verify: " + chalk.white("java -version"));
+    console.log();
 }
 
 async function showAndroidSdkInstallGuide() {
@@ -133,8 +125,8 @@ async function showAndroidSdkInstallGuide() {
     info(`   - ${chalk.white("Android SDK Platform-Tools")}`);
     info("4. Set ANDROID_HOME environment variable:");
     if (IS_WIN) {
-        info(`   ${chalk.white(`ANDROID_HOME = C:\\Users\\<user>\\AppData\\Local\\Android\\Sdk`)}`);
-        info(`   PATH += ${chalk.white(`%ANDROID_HOME%\\platform-tools`)}`);
+        info(`   ${chalk.white("ANDROID_HOME = C:\\Users\\<user>\\AppData\\Local\\Android\\Sdk")}`);
+        info(`   PATH += ${chalk.white("%ANDROID_HOME%\\platform-tools")}`);
     } else if (IS_MAC) {
         info(`   ${chalk.white("export ANDROID_HOME=$HOME/Library/Android/sdk")}`);
         info(`   ${chalk.white("export PATH=$PATH:$ANDROID_HOME/platform-tools")}`);
@@ -156,7 +148,7 @@ async function initializeAndroidTemplate() {
     }
     const spinner = ora("  Running template-setup.js...").start();
     try {
-        await setupGradle(); 
+        await setupGradle();
         spinner.succeed("Android template initialized successfully.");
         return true;
     } catch (e) {
@@ -191,13 +183,11 @@ async function main() {
         ok(`Java ${java.version}`);
     } else {
         fail(`Java ${java.version || "not found"} (required >= 11)`);
-        const install = await confirm("Do you want to install Java now?");
-        if (!install) abort("Java is required to build APKs.");
-        const installed = await installJava();
-        if (!installed) abort("Java installation failed. Please install manually and re-run setup.");
-        java = checkJava();
-        if (!java.ok) abort("Java still not detected after installation. Check PATH and restart terminal.");
-        ok(`Java ${java.version} (installed)`);
+        const showGuide = await confirm("Do you want to see the Java installation guide?");
+        if (showGuide) {
+            await showJavaInstallGuide();
+        }
+        abort("Java is required to build APKs. Please install it and re-run setup.");
     }
     console.log();
 
@@ -230,7 +220,7 @@ async function main() {
     sep();
     console.log();
     console.log(chalk.bold.green("✅ All requirements met! System is ready to build APKs!"));
-    console.log(`Run: ${chalk.cyan("node cli.js -u <url> -n \"<app name>\"")}\n`);
+    console.log(`Run: ${chalk.cyan('node cli.js -u <url> -n "<app name>"')}\n`);
 }
 
 main().catch((e) => {

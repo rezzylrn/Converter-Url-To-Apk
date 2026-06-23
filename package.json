@@ -1,22 +1,29 @@
 {
-  "name": "url-to-apk-bot",
+  "name": "converter-url-to-apk",
   "version": "1.0.0",
-  "description": "Telegram bot to build Android APKs from URLs",
+  "description": "Professional CLI tool to convert any website URL into an Android APK via WebView wrapper",
   "main": "index.js",
+  "bin": {
+    "url-to-apk": "./cli.js"
+  },
   "scripts": {
-    "start": "node index.js"
+    "setup": "node setup.js",
+    "build": "node cli.js",
+    "start": "node cli.js"
   },
   "keywords": [
-    "telegram-bot",
     "android",
     "apk",
     "webview",
+    "converter",
+    "cli",
     "nodejs"
   ],
-  "author": "Gracious",
+  "author": "rezzylrn",
   "license": "MIT",
   "dependencies": {
-    "dotenv": "^17.4.2",
-    "telegraf": "^4.15.3"
+    "chalk": "^4.1.2",
+    "commander": "^11.1.0",
+    "ora": "^5.4.1"
   }
 }

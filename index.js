@@ -18,7 +18,7 @@ async function buildApk(config) {
     } = config;
 
     const templateDir = path.join(__dirname, 'android-template');
-    
+
     if (!fs.existsSync(templateDir)) {
         throw new Error("Android template not found. Please run 'node setup.js' first.");
     }
@@ -42,40 +42,65 @@ async function buildApk(config) {
 
     // 3. Update MainActivity.kt
     const activityPath = path.join(templateDir, 'app/src/main/java/com/example/webviewapp/MainActivity.kt');
-    // Note: In a more advanced version, we should move the file to the correct package directory structure.
-    // For simplicity, we keep the template structure but update the package name in the file.
+
     let activity = fs.readFileSync(activityPath, 'utf8');
     activity = activity.replace(/package [^\n]*/, `package ${packageName}`);
-    activity = activity.replace(/loadUrl\("[^"]*"\)/, `loadUrl("${targetUrl}")`);
-    
-    // Simple dark mode implementation via WebView settings if requested
+
+    // FIX #4: Escape special characters in URL to prevent Kotlin code injection
+    const escapedUrl = targetUrl.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+    activity = activity.replace(/loadUrl\("[^"]*"\)/, `loadUrl("${escapedUrl}")`);
+
+    // Dark mode implementation via WebView settings
     if (darkMode === 'true' || darkMode === true) {
-        // This is a placeholder for actual dark mode logic in the Kotlin code
-        // For now, we just ensure the URL is loaded.
+        activity = activity.replace(
+            'webView.settings.domStorageEnabled = true',
+            'webView.settings.domStorageEnabled = true\n        webView.settings.forceDark = WebSettings.FORCE_DARK_ON'
+        );
+        // Add the import for WebSettings at the top
+        if (!activity.includes('import android.webkit.WebSettings')) {
+            activity = activity.replace(
+                'import android.webkit.WebViewClient',
+                'import android.webkit.WebSettings\nimport android.webkit.WebViewClient'
+            );
+        }
     }
-    
-    // We need to move the MainActivity.kt to the correct folder matching the package name
+
+    // FIX #5: Move the MainActivity.kt to the correct folder matching the package name
     const packageFolder = path.join(templateDir, 'app/src/main/java', ...packageName.split('.'));
     fs.mkdirSync(packageFolder, { recursive: true });
     const newActivityPath = path.join(packageFolder, 'MainActivity.kt');
     fs.writeFileSync(newActivityPath, activity);
-    
-    // Remove old template activity if it's different
-    if (newActivityPath !== activityPath) {
-        // Optional: clean up the template directory
+
+    // FIX #6: Clean up old template directory to prevent duplicate class errors
+    const oldTemplateDir = path.join(templateDir, 'app/src/main/java/com/example/webviewapp');
+    if (fs.existsSync(oldTemplateDir) && newActivityPath !== activityPath) {
+        try {
+            fs.rmSync(oldTemplateDir, { recursive: true, force: true });
+        } catch (cleanupErr) {
+            console.warn(`Warning: Could not clean up old template directory: ${cleanupErr.message}`);
+        }
     }
 
     // 4. Run Gradle Build
     console.log("Running Gradle build... (this may take a few minutes)");
     const gradlew = process.platform === 'win32' ? 'gradlew.bat' : './gradlew';
-    
+
     try {
         execSync(`${gradlew} assembleDebug`, {
             cwd: templateDir,
-            stdio: 'inherit'
+            stdio: 'pipe',
+            timeout: 600000  // FIX #7: 10 minute timeout to prevent infinite hangs
         });
     } catch (error) {
-        throw new Error("Gradle build failed. Check your Android SDK and Java setup.");
+        // FIX #8: Capture and display actual Gradle error output
+        const stderr = error.stderr ? error.stderr.toString() : '';
+        const stdout = error.stdout ? error.stdout.toString() : '';
+        const errorOutput = (stderr + '\n' + stdout).trim();
+        throw new Error(
+            "Gradle build failed.\n" +
+            "Check your Android SDK and Java setup.\n" +
+            (errorOutput ? `\nBuild output:\n${errorOutput.substring(-2000)}` : '')
+        );
     }
 
     // 5. Copy output
@@ -104,7 +129,7 @@ if (require.main === module) {
     };
 
     buildApk(config)
-        .then(path => console.log(`\nSUCCESS: APK saved to ${path}`))
+        .then(apkPath => console.log(`\nSUCCESS: APK saved to ${apkPath}`))
         .catch(err => {
             console.error(`\nERROR: ${err.message}`);
             process.exit(1);
